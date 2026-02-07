@@ -1,0 +1,158 @@
+:root {
+    --tg-blue: #3390ec;
+    --tg-bg: #ffffff;
+    --tg-secondary-bg: #f4f4f5;
+    --tg-text: #000000;
+    --tg-hint: #707579;
+    --tg-border: #dfe1e5;
+    --tg-msg-out: #eeffde;
+    --tg-msg-in: #ffffff;
+    --header-height: 56px;
+    --sidebar-width: 280px;
+}
+
+* { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--tg-bg); color: var(--tg-text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* Utilities */
+.hidden { display: none !important; }
+.flex { display: flex; }
+.center { align-items: center; justify-content: center; }
+
+/* Auth Screen */
+#auth-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--tg-secondary-bg); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+}
+.auth-card {
+    background: white; padding: 2rem; border-radius: 12px;
+    width: 100%; max-width: 360px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+.auth-card h2 { margin-top: 0; color: var(--tg-blue); }
+.input-group { margin-bottom: 1rem; text-align: left; }
+.input-group label { display: block; font-size: 0.85rem; color: var(--tg-hint); margin-bottom: 4px; }
+.input-group input {
+    width: 100%; padding: 12px; border: 1px solid var(--tg-border);
+    border-radius: 8px; font-size: 1rem; transition: 0.2s;
+}
+.btn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: var(--tg-blue); color: white; font-size: 1rem;
+    font-weight: 600; cursor: pointer; margin-top: 10px;
+}
+.toggle-link { margin-top: 15px; font-size: 0.9rem; color: var(--tg-blue); cursor: pointer; }
+
+/* Main Layout */
+#app-layout { display: flex; height: 100%; width: 100%; }
+
+/* Sidebar */
+#sidebar {
+    width: var(--sidebar-width); border-right: 1px solid var(--tg-border);
+    background: var(--tg-bg); display: flex; flex-direction: column;
+    flex-shrink: 0;
+}
+.sidebar-header { padding: 15px; border-bottom: 1px solid var(--tg-border); font-weight: bold; }
+.user-list { overflow-y: auto; flex: 1; }
+.user-item {
+    padding: 12px 15px; display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: background 0.2s; position: relative;
+}
+.user-item:hover { background: var(--tg-secondary-bg); }
+.user-item.active { background: #e3f2fd; }
+.user-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; flex-shrink: 0; }
+.user-info { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
+.user-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Unread Badge */
+.badge {
+    background-color: #ff3b30;
+    color: white;
+    border-radius: 50%;
+    min-width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 0 4px;
+    margin-left: auto;
+}
+
+/* Chat Area */
+#chat-area { flex: 1; display: flex; flex-direction: column; background: #9db2bf; background-image: radial-gradient(#aebbc4 1px, transparent 1px); background-size: 20px 20px; position: relative; }
+.empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; flex-direction: column; }
+
+header {
+    height: var(--header-height); background: var(--tg-bg);
+    border-bottom: 1px solid var(--tg-border);
+    display: flex; align-items: center; padding: 0 16px;
+    justify-content: space-between; flex-shrink: 0; z-index: 10;
+}
+.header-info { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+
+#chat-container { 
+    flex: 1; overflow-y: auto; padding: 10px; display: flex; 
+    flex-direction: column; gap: 8px; scroll-behavior: smooth; 
+}
+
+.message { max-width: 75%; padding: 8px 12px; border-radius: 12px; position: relative; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; animation: fadeIn 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Message Alignment */
+.message.in { align-self: flex-start; background: var(--tg-msg-in); border-bottom-left-radius: 4px; }
+.message.out { align-self: flex-end; background: var(--tg-msg-out); border-bottom-right-radius: 4px; }
+
+/* RTL Specifics: If message is RTL, align time and checkmarks correctly */
+.message[dir="rtl"] .msg-meta {
+    justify-content: flex-start; /* In RTL, 'left' is visually 'start' for time if we want standard Telegram look */
+    flex-direction: row-reverse; /* Optional: keeps time on the far side visually */
+}
+
+/* Actually, for Persian Telegram, the time stays on the LEFT side of the text bubble, 
+   but text is Right to Left. 
+   We need to ensure .msg-meta behaves correctly. */
+.message[dir="rtl"] { text-align: right; }
+.message[dir="rtl"] .msg-meta { 
+    justify-content: flex-start; /* Push to left side of the bubble in RTL layout */
+    gap: 4px; 
+    margin-top: 2px;
+}
+
+.msg-time { font-size: 0.7rem; color: var(--tg-hint); }
+
+/* Input Area */
+footer {
+    padding: 10px 16px; background: var(--tg-bg); border-top: 1px solid var(--tg-border);
+    display: flex; align-items: flex-end; gap: 10px; flex-shrink: 0;
+}
+#msg-input {
+    flex: 1; padding: 10px; border: 1px solid var(--tg-border);
+    border-radius: 20px; resize: none; height: 44px; 
+    max-height: 120px; min-height: 44px;
+    font-family: inherit; font-size: 1rem;
+    background: var(--tg-secondary-bg);
+    line-height: 1.4;
+    overflow-y: hidden;
+}
+#send-btn {
+    width: 44px; height: 44px; border-radius: 50%; border: none;
+    background: var(--tg-blue); color: white; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+#send-btn svg { width: 20px; height: 20px; fill: currentColor; transform: translateX(2px); }
+
+/* SVGs */
+.icon { width: 24px; height: 24px; fill: var(--tg-hint); cursor: pointer; }
+.icon:hover { fill: var(--tg-blue); }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    #sidebar { width: 100%; position: absolute; z-index: 20; height: 100%; }
+    #chat-area { width: 100%; position: absolute; z-index: 10; height: 100%; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
+    #chat-area.active { transform: translateX(0); z-index: 30; }
+    .back-btn { display: block !important; margin-right: 10px; cursor: pointer; }
+}
+.back-btn { display: none; }
