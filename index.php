@@ -6,7 +6,7 @@ session_start();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Telegram Lite Private</title>
+    <title>Online Chat</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,7 +20,7 @@ session_start();
                     <path d="M6.5 12L9.5 14.5L17.5 7.5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </div>
-            
+
             <div id="login-form">
                 <h2>Sign In</h2>
                 <div class="input-group">
@@ -106,12 +106,36 @@ session_start();
         let pollInterval = null;
         let usersCache = [];
 
+        // Detect mobile device
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
         // RTL DETECTION HELPER
         function isPersian(text) {
             // Range for Persian, Arabic, and associated characters
             const persianRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
             return persianRegex.test(text);
         }
+
+        // Handle back button on mobile
+        function handleBackButton() {
+            if (isMobile() && currentTarget) {
+                // If on mobile and in a chat, close chat instead of going back
+                closeChat();
+                // Prevent default back behavior by adding to history
+                history.pushState(null, null, location.href);
+            }
+        }
+
+        // Listen for browser back button
+        window.addEventListener('popstate', function(event) {
+            if (isMobile() && currentTarget) {
+                closeChat();
+                // Push a new state to stay on the page
+                history.pushState(null, null, location.href);
+            }
+        });
 
         // Auto resize & RTL Toggle
         const tx = document.getElementsByTagName("textarea");
@@ -120,7 +144,7 @@ session_start();
             tx[i].addEventListener("input", function() {
                 this.style.height = "auto";
                 this.style.height = (this.scrollHeight) + "px";
-                
+
                 // Check for RTL
                 if (isPersian(this.value)) {
                     this.setAttribute("dir", "rtl");
@@ -130,6 +154,22 @@ session_start();
                     this.style.textAlign = "left";
                 }
             }, false);
+        }
+
+        // Helper function to escape HTML and preserve newlines
+        function formatMessageText(text) {
+            // Escape HTML special characters
+            let escaped = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
+            // Replace newlines with <br> tags
+            escaped = escaped.replace(/\n/g, '<br>');
+
+            return escaped;
         }
 
         // --- AUTH ---
@@ -175,6 +215,11 @@ session_start();
             requestNotificationPermission();
             loadUsers();
             setInterval(loadUsers, 5000);
+
+            // Initialize history state for back button handling
+            if (isMobile()) {
+                history.pushState(null, null, location.href);
+            }
         }
 
         async function loadUsers() {
@@ -215,27 +260,51 @@ session_start();
             av.textContent = targetUser.username.substring(0,2).toUpperCase();
             document.getElementById('chat-container').innerHTML = '';
             lastMessageTime = 0;
-            
+
             await fetch('api.php?action=read', { method: 'POST', body: JSON.stringify({ target: currentTarget }) });
             loadUsers();
             if(pollInterval) clearInterval(pollInterval);
             pollMessages();
             pollInterval = setInterval(pollMessages, 3000);
+
+            // Push new history state for back button handling on mobile
+            if (isMobile()) {
+                history.pushState({chat: currentTarget}, null, location.href);
+            }
         }
 
         function closeChat() {
             document.getElementById('chat-area').classList.remove('active');
-            setTimeout(() => { currentTarget = null; if(pollInterval) clearInterval(pollInterval); renderUserList(usersCache); }, 300);
+            setTimeout(() => {
+                currentTarget = null;
+                if(pollInterval) clearInterval(pollInterval);
+                renderUserList(usersCache);
+                document.getElementById('active-chat-view').style.display = 'none';
+                document.getElementById('empty-view').style.display = 'flex';
+            }, 300);
+
+            // Clear the history state when closing chat
+            if (isMobile()) {
+                setTimeout(() => {
+                    history.pushState(null, null, location.href);
+                }, 100);
+            }
         }
 
         async function sendMessage() {
             const input = document.getElementById('msg-input');
-            const text = input.value.trim();
-            if(!text || !currentTarget) return;
+            const text = input.value;
+            if(!text.trim() || !currentTarget) return;
+
+            // Preserve the original text (including newlines) for sending
             input.value = '';
             input.style.height = 'auto';
             input.setAttribute("dir", "ltr"); // Reset input
-            await fetch('api.php?action=send', { method: 'POST', body: JSON.stringify({ target: currentTarget, text: text }) });
+
+            await fetch('api.php?action=send', {
+                method: 'POST',
+                body: JSON.stringify({ target: currentTarget, text: text })
+            });
             pollMessages();
         }
 
@@ -259,21 +328,16 @@ session_start();
                 lastMessageTime = m.time;
                 const isMe = m.sender === currentUser.username;
                 const isRTL = isPersian(m.text);
-                
+
                 const div = document.createElement('div');
-                // If it is RTL, force it to the right side regardless of sender for better readability, 
-                // OR keep sender logic but change internal alignment. 
-                // Standard Telegram: Incoming=Left, Outgoing=Right. 
-                // But for RTL text inside the bubble:
-                
-                // If Persian text, the bubble content should be RTL. 
-                // The bubble position (left/right) depends on sender.
-                
                 div.className = `message ${isMe ? 'out' : 'in'} ${isRTL ? 'rtl-msg' : ''}`;
                 div.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
-                
+
+                // Format message with newlines preserved
+                const formattedMessage = formatMessageText(m.text);
+
                 div.innerHTML = `
-                    <div>${m.text}</div>
+                    <div class="message-text">${formattedMessage}</div>
                     <div class="msg-meta">
                         <span class="msg-time">${new Date(m.time * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
@@ -299,10 +363,27 @@ session_start();
             }
         }
 
+        // Handle textarea input based on device
+        const msgInput = document.getElementById('msg-input');
+        if (msgInput) {
+            msgInput.addEventListener('keydown', function(e) {
+                if (isMobile()) {
+                    // On mobile: Enter creates newline, no automatic send
+                    if (e.key === 'Enter') {
+                        // Allow default behavior - insert newline
+                        return;
+                    }
+                } else {
+                    // On desktop: Enter sends, Shift+Enter creates newline
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                }
+            });
+        }
+
         checkSession();
-        document.getElementById('msg-input').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-        });
     </script>
 </body>
 </html>
